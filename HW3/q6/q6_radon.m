@@ -1,5 +1,6 @@
 image = imread('cryoem.png');
-NN = [50 100 500 1000 2000 5000 10000];
+%NN = [50 100 500 1000 2000 5000 10000];
+NN = [5000];
 for N = NN
     random_angles = rand(N, 1) * 360;
     projections = radon(image, random_angles);
@@ -31,19 +32,31 @@ for N = NN
     reconstructed_image = iradon(projections, 180/N , 'linear', 'Ram-Lak', 1, size(image, 1));
     RMSE = 1000000;
     rotation_angle = 0;
+    flipped = 0;
     for angle = 0:1:359
         reconstructed_image_rotated = imrotate(reconstructed_image, angle, 'bilinear', 'crop');
         rmse = sqrt(mean((double(image(:)) - double(reconstructed_image_rotated(:))).^2));
         if(rmse < RMSE)
             RMSE = rmse;
             rotation_angle = angle;
+            flipped = 0;
+        end
+        reconstructed_image_rotated = flip(reconstructed_image_rotated);
+        rmse = sqrt(mean((double(image(:)) - double(reconstructed_image_rotated(:))).^2));
+        if(rmse < RMSE)
+            RMSE = rmse;
+            rotation_angle = angle;
+            flipped = 1;
         end
     end
-    RMSE = RMSE / sqrt(mean(double(image(:)).^2));
     reconstructed_image = imrotate(reconstructed_image, rotation_angle, 'bilinear', 'crop');
+    if flipped == 1
+        reconstructed_image = flip(reconstructed_image);
+    end
+    RMSE = sqrt(mean((double(image(:)) - double(reconstructed_image(:))).^2));
+    RMSE = RMSE / sqrt(mean(double(image(:)).^2));
     figure;
     imshow(reconstructed_image, []);
     title(['Reconstructed with N = ' num2str(N) ' and RMSE = ' num2str(RMSE)]);
-    %save the image as filename N.png where N is the number of projections
     saveas(gcf, num2str(N), 'png');
 end
